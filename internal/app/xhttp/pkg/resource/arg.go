@@ -54,6 +54,9 @@ const (
 	// GoogleChromeRpccBufferSizeArgKey is the key
 	// of the argument "googleChromeRpccBufferSize".
 	GoogleChromeRpccBufferSizeArgKey ArgKey = "googleChromeRpccBufferSize"
+	// WindowStatusArgKey is the key
+	// of the argument "windowStatus".
+	WindowStatusArgKey ArgKey = "windowStatus"
 )
 
 /*
@@ -77,6 +80,7 @@ func ArgKeys() []ArgKey {
 		MarginRightArgKey,
 		LandscapeArgKey,
 		GoogleChromeRpccBufferSizeArgKey,
+		WindowStatusArgKey,
 	}
 }
 
@@ -285,6 +289,19 @@ func GoogleChromeRpccBufferSizeArg(r Resource, config conf.Config) (int64, error
 		xassert.Int64NotInferiorTo(0.0),
 		xassert.Int64NotSuperiorTo(config.MaximumGoogleChromeRpccBufferSize()),
 	)
+	if err != nil {
+		return result, xerror.New(op, err)
+	}
+	return result, nil
+}
+
+/*
+WindowStatusArg is a helper for retrieving
+the "windowStatus" argument as string.
+*/
+func WindowStatusArg(r Resource, config conf.Config) (string, error) {
+	const op string = "resource.WindowStatusArg"
+	result, err := r.StringArg(WindowStatusArgKey, "")
 	if err != nil {
 		return result, xerror.New(op, err)
 	}

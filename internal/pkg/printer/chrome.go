@@ -43,6 +43,7 @@ type ChromePrinterOptions struct {
 	MarginRight    float64
 	Landscape      bool
 	RpccBufferSize int64
+	WindowStatus   string
 }
 
 // DefaultChromePrinterOptions returns the default
@@ -149,13 +150,36 @@ func (p chromePrinter) Print(destination string) error {
 		if err := p.listenEvents(ctx, targetClient); err != nil {
 			return err
 		}
-		// apply a wait delay (if any).
-		if p.opts.WaitDelay > 0.0 {
-			// wait for a given amount of time (useful for javascript delay).
-			p.logger.DebugfOp(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
-			time.Sleep(xtime.Duration(p.opts.WaitDelay))
+
+		if p.opts.WindowStatus != "" {
+			var status string
+
+			expectedStatus := `"` + p.opts.WindowStatus + `"`
+
+			for 1 == 1 {
+				eval, err := targetClient.Runtime.Evaluate(ctx, runtime.NewEvaluateArgs(`window.status`))
+				if err != nil {
+					return err
+				}
+				if eval != nil && eval.Result.String() != status {
+					status = eval.Result.String()
+					p.logger.InfofOp(op, "Status change %v", status)
+
+					if status == expectedStatus {
+						break
+					}
+				}
+				time.Sleep(250 * time.Millisecond)
+			}
 		} else {
-			p.logger.DebugOp(op, "no wait delay to apply, moving on...")
+			// apply a wait delay (if any).
+			if p.opts.WaitDelay > 0.0 {
+				// wait for a given amount of time (useful for javascript delay).
+				p.logger.DebugfOp(op, "applying a wait delay of '%.2fs'...", p.opts.WaitDelay)
+				time.Sleep(xtime.Duration(p.opts.WaitDelay))
+			} else {
+				p.logger.DebugOp(op, "no wait delay to apply, moving on...")
+			}
 		}
 		// print the page to PDF.
 		print, err := targetClient.Page.PrintToPDF(
@@ -330,23 +354,6 @@ func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) err
 			return err
 		}
 
-		var status string
-
-		for 1 == 1 {
-			eval, err := client.Runtime.Evaluate(ctx, runtime.NewEvaluateArgs(`window.status`))
-			if err != nil {
-				return err
-			}
-			if eval != nil && eval.Result.String() != status {
-				status = eval.Result.String()
-				p.logger.InfofOp(op, "Status change '%v'", status)
-
-				if status == "OK" || status == `"OK"` {
-					break
-				}
-			}
-			time.Sleep(300 * time.Millisecond)
-		}
 		return nil
 	}
 	if err := resolver(); err != nil {

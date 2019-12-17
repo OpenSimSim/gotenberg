@@ -52,6 +52,11 @@ func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.Chro
 		if err != nil {
 			return printer.ChromePrinterOptions{}, err
 		}
+		windowStatus, err := resource.WindowStatusArg(r, config)
+		if err != nil {
+			return printer.ChromePrinterOptions{}, err
+		}
+
 		return printer.ChromePrinterOptions{
 			WaitTimeout:    waitTimeout,
 			WaitDelay:      waitDelay,
@@ -65,6 +70,7 @@ func chromePrinterOptions(r resource.Resource, config conf.Config) (printer.Chro
 			MarginRight:    marginRight,
 			Landscape:      landscape,
 			RpccBufferSize: googleChromeRpccBufferSize,
+			WindowStatus:   windowStatus,
 		}, nil
 	}
 	opts, err := resolver()
