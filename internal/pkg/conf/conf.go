@@ -59,10 +59,10 @@ type Config struct {
 // configuration.
 func DefaultConfig() Config {
 	return Config{
-		maximumWaitTimeout:                30.0,
+		maximumWaitTimeout:                120.0,
 		maximumWaitDelay:                  10.0,
 		maximumWebhookURLTimeout:          30.0,
-		defaultWaitTimeout:                10.0,
+		defaultWaitTimeout:                30.0,
 		defaultWebhookURLTimeout:          10.0,
 		defaultListenPort:                 3000,
 		disableGoogleChrome:               false,

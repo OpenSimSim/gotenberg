@@ -11,6 +11,7 @@ import (
 	"github.com/mafredri/cdp/devtool"
 	"github.com/mafredri/cdp/protocol/network"
 	"github.com/mafredri/cdp/protocol/page"
+	"github.com/mafredri/cdp/protocol/runtime"
 	"github.com/mafredri/cdp/protocol/target"
 	"github.com/mafredri/cdp/rpcc"
 	"github.com/thecodingmachine/gotenberg/internal/pkg/conf"
@@ -279,11 +280,12 @@ func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) err
 			return err
 		}
 		defer loadingFinished.Close() // nolint: errcheck
+
 		if _, err := client.Page.Navigate(ctx, page.NewNavigateArgs(p.url)); err != nil {
 			return err
 		}
 		// wait for all events.
-		return runBatch(
+		err = runBatch(
 			func() error {
 				_, err := domContentEventFired.Recv()
 				if err != nil {
@@ -323,6 +325,29 @@ func (p chromePrinter) listenEvents(ctx context.Context, client *cdp.Client) err
 				return nil
 			},
 		)
+
+		if err != nil {
+			return err
+		}
+
+		var status string
+
+		for 1 == 1 {
+			eval, err := client.Runtime.Evaluate(ctx, runtime.NewEvaluateArgs(`window.status`))
+			if err != nil {
+				return err
+			}
+			if eval != nil && eval.Result.String() != status {
+				status = eval.Result.String()
+				p.logger.InfofOp(op, "Status change '%v'", status)
+
+				if status == "OK" || status == `"OK"` {
+					break
+				}
+			}
+			time.Sleep(300 * time.Millisecond)
+		}
+		return nil
 	}
 	if err := resolver(); err != nil {
 		return xerror.New(op, err)
