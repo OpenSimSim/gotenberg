@@ -1,0 +1,123 @@
+---
+version: 2.1
+orbs:
+  aws-cli: opensimsim/aws-cli@1
+  custom-tools: opensimsim/custom-tools@1
+  setup-env-vars: opensimsim/setup-env-vars@1
+  setup-deploy-keys: opensimsim/setup-deploy-keys@1
+  aws-role: opensimsim/aws-role-config@1
+  setup-docker: opensimsim/setup-docker@1
+  kube-manifest: opensimsim/kube-manifest@1
+  release-version: opensimsim/release-version@1
+  release-tag: opensimsim/release-tag@1
+jobs:
+  prod:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - custom-tools/install
+      - setup_remote_docker
+      - aws-cli/install
+      - setup-env-vars/test
+      - setup-deploy-keys/deploy
+      - aws-cli/configure
+      - aws-role/assume-role
+      - release-version/release
+      - setup-docker/deploy
+      - run:
+          name: "launch delivery-service container"
+          command: |
+            source ${BASH_ENV}
+            docker run -d --name ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_PROJECT_REPONAME} /app/delivery-service
+            docker exec -it ${CIRCLE_PROJECT_REPONAME} dockerize -wait tcp://localhost:8080 -timeout 1m
+      - run:
+          name: "docker tests"
+          command: |
+            docker exec -it -e CGO_ENABLED=0 ${CIRCLE_PROJECT_REPONAME} go test ./...
+      - setup-docker/push
+      - setup-env-vars/prod
+      - aws-cli/configure
+      - aws-role/assume-role
+      - setup-docker/deploy
+      - setup-docker/push
+      - release-tag/add
+  build:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - custom-tools/install
+      - setup_remote_docker
+      - aws-cli/install
+      - setup-env-vars/test
+      - setup-deploy-keys/deploy
+      - aws-cli/configure
+      - aws-role/assume-role
+      - setup-docker/build
+      - run:
+          name: "launch delivery-service container"
+          command: |
+            source ${BASH_ENV}
+            docker run -d --name ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_PROJECT_REPONAME} /app/delivery-service
+            docker exec -it ${CIRCLE_PROJECT_REPONAME} dockerize -wait tcp://localhost:8080 -timeout 1m
+      - run:
+          name: "docker tests"
+          command: |
+            docker exec -it -e CGO_ENABLED=0 ${CIRCLE_PROJECT_REPONAME} go test ./...
+  deploy:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - custom-tools/install
+      - setup_remote_docker
+      - aws-cli/install
+      - setup-env-vars/test
+      - setup-deploy-keys/deploy
+      - aws-cli/configure
+      - aws-role/assume-role
+      - kube-manifest/build
+      - setup-docker/deploy
+      - run:
+          name: "launch delivery-service container"
+          command: |
+            source ${BASH_ENV}
+            docker run -d --name ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_PROJECT_REPONAME} /app/delivery-service
+            docker exec -it ${CIRCLE_PROJECT_REPONAME} dockerize -wait tcp://localhost:8080 -timeout 1m
+      - run:
+          name: "docker tests"
+          command: |
+            docker exec -it -e CGO_ENABLED=0 ${CIRCLE_PROJECT_REPONAME} go test ./...
+      - setup-docker/deploycheck
+      - setup-docker/push
+
+workflows:
+  version: 2
+  prod:
+    jobs:
+      - prod:
+          filters:
+            branches:
+              only:
+                - master
+                
+  build:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore:
+                - master
+                - /hotfix\/.*/
+                - /release\/.*/
+                - /.*\/epic/
+  deploy:
+    jobs:
+      - deploy:
+          filters:
+            branches:
+              only:
+                - /hotfix\/.*/
+                - /release\/.*/
+                - /.*\/epic/
