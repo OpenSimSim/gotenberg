@@ -7,7 +7,7 @@ it: build build-tests ## Initialize the development environment
 
 GOLANG_VERSION=1.20
 DOCKER_REPOSITORY=gotenberg
-GOTENBERG_VERSION=snapshot
+GOTENBERG_VERSION=6.0.5
 GOTENBERG_USER_GID=1001
 GOTENBERG_USER_UID=1001
 NOTO_COLOR_EMOJI_VERSION=v2.038 # See https://github.com/googlefonts/noto-emoji/releases.
@@ -26,6 +26,13 @@ DOCKERFILE = images/kube/Dockerfile
 VERSION    = $(shell git describe --tags --always)
 PATCHVERSION = $(v)
 
+ifneq ($(e),)
+ENV = $(e)
+ifeq ($(ENV),prod)
+REPO = 611791207455.dkr.ecr.us-west-2.amazonaws.com/gotenberg
+endif
+endif
+
 .PHONY: build
 build: ## Build the Gotenberg's Docker image
 	docker build \
@@ -35,7 +42,7 @@ build: ## Build the Gotenberg's Docker image
 	--build-arg GOTENBERG_USER_UID=$(GOTENBERG_USER_UID) \
 	--build-arg NOTO_COLOR_EMOJI_VERSION=$(NOTO_COLOR_EMOJI_VERSION) \
 	--build-arg PDFTK_VERSION=$(PDFTK_VERSION) \
-	-t $(DOCKER_REPOSITORY)/gotenberg:$(GOTENBERG_VERSION) \
+	-t 587737487888.dkr.ecr.us-west-2.amazonaws.com/gotenberg:$(GOTENBERG_VERSION) \
 	-f build/Dockerfile .
 
 GOTENBERG_GRACEFUL_SHUTDOWN_DURATION=30s
@@ -210,7 +217,7 @@ patch:
 .PHONY: local
 local:
 	docker build --pull . \
-		-f images/local/Dockerfile \
+		-f build/Dockerfile \
 		-t $(REPO):local
 
 .PHONY: image
@@ -222,7 +229,7 @@ image:
 .PHONY: master
 master:
 	docker build --pull . \
-		-f images/master/Dockerfile \
+		-f  build/Dockerfile \
 		-t $(REPO):master
 	docker push \
 		$(REPO):master

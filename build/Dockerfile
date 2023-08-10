@@ -7,7 +7,7 @@ ARG GOTENBERG_VERSION
 # ----------------------------------------------
 # Gotenberg binary build stage
 # ----------------------------------------------
-FROM golang:$GOLANG_VERSION AS binary-stage
+FROM golang:1.20 AS binary-stage
 
 ARG GOTENBERG_VERSION
 ENV CGO_ENABLED 0
